@@ -26,13 +26,23 @@ def parse_args():
         '--musicxml',
         dest='musicxml',
         type=dir_path,
-        help="Directory containing MusicXML data"
+        help='Directory containing MusicXML data'
     )
 
     parser.add_argument(
-        '-o',
+        '-o'
         '--output',
         dest='output',
+        type=str,
+        help="Directory containing mapped data",
+        nargs='?',
+        default='data'
+    )
+
+    parser.add_argument(
+        '-v',
+        '--vocab',
+        dest='vocab',
         nargs='?',
         default='score_transformers_vocab.txt'
     )
@@ -54,6 +64,14 @@ def write_to_file(strings, filename):
             file.write(string + "\n")
 
 
+def create_mappings(output_folder, tokens_list, unique_tokens):
+    for i, tokens in enumerate(tokens_list):
+        os.makedirs(output_folder, exist_ok=True)
+        with open(os.path.join(output_folder, 'file' + str(i).zfill(3)) + '.txt', 'w') as file:
+            for token in tokens:
+                file.write(str(unique_tokens.index(token)) + ' ')
+
+
 def main():
     args = parse_args()
     musicxml_path = args.musicxml
@@ -63,7 +81,10 @@ def main():
     tokens_list = [MusicXML_to_tokens(path) for path in tqdm(sonatas_paths)]
 
     unique_tokens = get_unique_strings(tokens_list)
-    write_to_file(unique_tokens, args.output)
+
+    write_to_file(unique_tokens, args.vocab)
+
+    create_mappings(args.output, tokens_list, unique_tokens)
 
 
 if __name__ == "__main__":
