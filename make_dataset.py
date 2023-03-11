@@ -30,7 +30,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        '-o'
+        '-o',
         '--output',
         dest='output',
         type=str,
@@ -64,10 +64,10 @@ def write_to_file(strings, filename):
             file.write(string + "\n")
 
 
-def create_mappings(output_folder, tokens_list, unique_tokens):
+def create_mappings(output_folder, tokens_list, unique_tokens, paths):
     for i, tokens in enumerate(tokens_list):
         os.makedirs(output_folder, exist_ok=True)
-        with open(os.path.join(output_folder, 'file' + str(i).zfill(3)) + '.txt', 'w') as file:
+        with open(os.path.join(output_folder, os.path.basename(paths[i])) + '.txt', 'w') as file:
             for token in tokens:
                 file.write(str(unique_tokens.index(token)) + ' ')
 
@@ -78,13 +78,14 @@ def main():
 
     sonatas_paths = glob.glob(musicxml_path + '/*')
 
-    tokens_list = [MusicXML_to_tokens(path) for path in tqdm(sonatas_paths)]
+    tokens_list = [(MusicXML_to_tokens(path))
+                   for path in tqdm(sonatas_paths)]
 
     unique_tokens = get_unique_strings(tokens_list)
 
     write_to_file(unique_tokens, args.vocab)
 
-    create_mappings(args.output, tokens_list, unique_tokens)
+    create_mappings(args.output, tokens_list, unique_tokens, sonatas_paths)
 
 
 if __name__ == "__main__":

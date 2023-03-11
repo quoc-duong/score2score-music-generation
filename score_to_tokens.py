@@ -275,16 +275,21 @@ def MusicXML_to_tokens(soup_or_mxml_path, note_name=True):  # use this method
             tag.extract()
 
         parts = [part.find_all('measure') for part in soup.find_all('part')]
-
-    if len(parts) == 1:
-        tokens = ['R'] + \
-            measures_to_tokens(parts[0], soup, staff=1, note_name=note_name)
-        tokens += ['L'] + \
-            measures_to_tokens(parts[0], soup, staff=2, note_name=note_name)
-    elif len(parts) == 2:
-        tokens = ['R'] + \
-            measures_to_tokens(parts[0], soup, note_name=note_name)
-        tokens += ['L'] + \
-            measures_to_tokens(parts[1], soup, note_name=note_name)
-
+    tokens = []
+    try:
+        if len(parts) == 1:
+            tokens = ['R'] + \
+                measures_to_tokens(
+                    parts[0], soup, staff=1, note_name=note_name)
+            tokens += ['L'] + \
+                measures_to_tokens(
+                    parts[0], soup, staff=2, note_name=note_name)
+        elif len(parts) == 2:
+            tokens = ['R'] + \
+                measures_to_tokens(parts[0], soup, note_name=note_name)
+            tokens += ['L'] + \
+                measures_to_tokens(parts[1], soup, note_name=note_name)
+    except Exception as e:
+        print({e})
+        pass
     return tokens
