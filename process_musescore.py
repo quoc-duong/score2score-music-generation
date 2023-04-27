@@ -79,30 +79,36 @@ def get_mscz_paths(dir_path):
 
 def mscz2musicxml(scores, json_name):
     to_discard = []
-    pattern = r"\/\w+\/\w+\/\w+\/\w+\/\d+\/\d+\.mscz"
+    pattern = r"^Cannot read file\s+(?P<path>.+):$"
     json_batch = create_convert_batch(scores, to_discard)
     with open(json_name, 'w') as f:
         json.dump(json_batch, f)
     while True:
         mscore_process = subprocess.Popen(
-            ['musescore.mscore', '-j', json_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            ['musescore.mscore', '-j', json_name], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         print('Waiting to finish')
-        return_code = mscore_process.wait()
-        print('Done')
 
-        if return_code != 0:
-            # Get last error line
-            err_out = mscore_process.stderr.read().decode('utf-8')
-            print(err_out)
-            matches = re.findall(pattern, err_out)
-            if len(matches) != 0:
-                # Add file that's problematic to the discard list
-                problematic_file = matches[-1]
-                print(problematic_file)
-                if problematic_file not in to_discard:
-                    print(f"Discarding {problematic_file}")
-                    to_discard.append(problematic_file)
-            print(to_discard)
+        # Print live output of the subprocess
+        while True:
+            output = mscore_process.stdout.readline()
+            if output == b'' and mscore_process.poll() is not None:
+                break
+            last_line = output
+            if output:
+                output = output.decode("utf-8").strip()
+                print(output)
+                matches = re.findall(pattern, output)
+                if len(matches) != 0:
+                    # Add file that's problematic to the discard list
+                    problematic_file = matches[-1]
+
+        print('Done\n')
+        if mscore_process.returncode != 0:
+            if problematic_file not in to_discard:
+                print(f"Discarding {problematic_file}")
+                to_discard.append(problematic_file)
+
+        print(to_discard)
 
         json_batch = create_convert_batch(scores, to_discard)
         if len(json_batch) == 0:
@@ -208,11 +214,20 @@ def create_dataset():
 
 def main():
     args = parse_args()
+    piano = None
+    piano_path = './data/piano.pkl'
     if args.process:
         path = os.path.expanduser(args.dir_path)
         file_list = get_mscz_paths(path)
         piano = filter_piano(
             file_list, args.metadata)
+        with open(piano_path, 'wb') as f:
+            pickle.dump(piano, f)
+    else:
+        if not os.path.exists(piano_path):
+            raise Exception('Pickle file does not exist')
+        with open(piano_path, 'rb') as f:
+            piano = pickle.load(f)
 
     if args.convert:
         mscz2musicxml(piano, './data/piano.json')
