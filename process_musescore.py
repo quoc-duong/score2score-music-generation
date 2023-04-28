@@ -79,7 +79,7 @@ def get_mscz_paths(dir_path):
 
 def mscz2musicxml(scores, json_name):
     to_discard = []
-    pattern = r"^Cannot read file\s+(?P<path>.+):$"
+    pattern = r"\/\w+(?:\/\w+)*\/\d+\.\w+"
     json_batch = create_convert_batch(scores, to_discard)
     with open(json_name, 'w') as f:
         json.dump(json_batch, f)
@@ -96,26 +96,26 @@ def mscz2musicxml(scores, json_name):
             last_line = output
             if output:
                 output = output.decode("utf-8").strip()
-                print(output)
-                matches = re.findall(pattern, output)
-                if len(matches) != 0:
-                    # Add file that's problematic to the discard list
-                    problematic_file = matches[-1]
+                print(output)  # Subprocess output
+                match = re.search(pattern, output)
+                if match:
+                    problematic_file = match.group(0)
 
-        print('Done\n')
         if mscore_process.returncode != 0:
+            print('Job stopped unexpectedly\n')
             if problematic_file not in to_discard:
+                # Add file that's problematic to the discard list
                 print(f"Discarding {problematic_file}")
                 to_discard.append(problematic_file)
 
-        print(to_discard)
+        print(f"There are {len(to_discard)} discarded file(s)")
 
         json_batch = create_convert_batch(scores, to_discard)
         if len(json_batch) == 0:
             break
         with open(json_name, 'w') as f:
             json.dump(json_batch, f)
-        print(f"Files to process: {len(json_batch)}")
+    print('Done')
 
 
 def create_convert_batch(score_list, to_discard):
