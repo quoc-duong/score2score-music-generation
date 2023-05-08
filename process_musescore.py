@@ -10,6 +10,8 @@ import pickle
 import re
 import music21
 import shutil
+import concurrent.futures
+import threading
 
 
 def parse_args():
@@ -19,6 +21,10 @@ def parse_args():
                         default='~/Documents/upf/MuseScore',
                         type=str,
                         help='Path to directory containing Musescore files')
+    parser.add_argument('--pkl',
+                        default='./data/filtered_piano.pkl',
+                        type=str,
+                        help='Pickle file containing list of filtered MusicXML piano files')
     parser.add_argument('--metadata',
                         default='./data/score.jsonl',
                         type=str,
@@ -170,30 +176,47 @@ def get_musicxml_paths(data_path):
     return musicxml_files
 
 
-def filter_empty(data_path):
+def is_piano(musicxml):
+    try:
+        score = music21.converter.parse(musicxml)
+    except music21.Music21Exception:
+        return None
+    except Exception:
+        return None
+    if len(score.parts) != 2:  # Ignore files that don't have 2 parts (left/right hand of piano)
+        return None
+    rh = score.parts[0].getElementsByClass(music21.stream.Measure)
+    lh = score.parts[1].getElementsByClass(music21.stream.Measure)
+
+    if len(rh) == 0 or len(lh) == 0:
+        print("The staff is empty")
+        return None
+    return musicxml
+
+
+def filter_empty(data_path, num_threads=os.cpu_count()):
     '''
     Filter out files that either have empty staves or don't have exactly 2 staves (left/right hand)
     '''
     musicxml_paths = get_musicxml_paths(data_path)
-    filtered_paths = []
-    for musicxml in tqdm(musicxml_paths):
-        try:
-            score = music21.converter.parse(musicxml)
-        except music21.Music21Exception:
-            continue
-        except Exception:
-            continue
-        if len(score.parts) != 2:  # Ignore files that don't have 2 parts (left/right hand of piano)
-            continue
-        rh = score.parts[0].getElementsByClass(music21.stream.Measure)
-        lh = score.parts[1].getElementsByClass(music21.stream.Measure)
+    results = []
+    threads = []
 
-        if len(rh) == 0 or len(lh) == 0:
-            print("The staff is empty")
-            print(musicxml)
-        else:
-            filtered_paths.append(musicxml)
-    return filtered_paths
+    for file in tqdm(musicxml_paths):
+        thread = threading.Thread(target=results.append(is_piano(file)))
+        threads.append(thread)
+
+        if len(threads) >= num_threads:
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            threads = []
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    return results
 
 
 def create_filtered_pickle(filename, data_path):
@@ -212,17 +235,6 @@ def create_filtered_pickle(filename, data_path):
 
 
 def create_dataset():
-    # Create .mscz dataset
-    with open('./data/piano.pkl', 'rb') as f:
-        piano_mscz = pickle.load(f)
-
-    os.makedirs('dataset_mscz', exist_ok=True)
-    piano_dir = './dataset_mscz/piano'
-    os.makedirs(piano_dir, exist_ok=True)
-
-    for filepath in piano_mscz:
-        shutil.copy(filepath, piano_dir)
-
     # Create MusicXML dataset
     with open('./data/filtered_piano.pkl', 'rb') as f:
         piano_musicxml = pickle.load(f)
@@ -256,11 +268,11 @@ def main():
         mscz2musicxml(piano, './data/piano.json')
 
     filtered_musicxml_piano = create_filtered_pickle(
-        './data/filtered_piano.pkl', path)
+        args.pkl, path)
 
     print(f"There are {len(filtered_musicxml_piano)} piano files")
 
-    create_dataset()
+    # create_dataset()
 
 
 if __name__ == "__main__":
