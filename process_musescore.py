@@ -37,6 +37,9 @@ def parse_args():
 
 
 def filter_piano(filenames, metadata):
+    '''
+    Function to filter out files that are not piano (looking at the MuseScore metadata)
+    '''
     lookup = {}
 
     with open(metadata) as f:
@@ -65,6 +68,9 @@ def filter_piano(filenames, metadata):
 
 
 def get_mscz_paths(dir_path):
+    '''
+    Get list of .mscz files
+    '''
     # Get list of all subdirectories in directory
     subdir_list = [f.path for f in os.scandir(dir_path) if f.is_dir()]
 
@@ -78,6 +84,11 @@ def get_mscz_paths(dir_path):
 
 
 def mscz2musicxml(scores, json_name):
+    '''
+    Convert all MuseScore files into MusicXML files in the same folders
+    Handles corrupt files and errors with mscore process.
+    TODO: Catch subprocess freezing
+    '''
     to_discard = []
     pattern = r"\/\w+(?:\/\w+)*\/\d+\.\w+"
     json_batch = create_convert_batch(scores, to_discard)
@@ -119,6 +130,9 @@ def mscz2musicxml(scores, json_name):
 
 
 def create_convert_batch(score_list, to_discard):
+    '''
+    Create JSON batch file for the conversion with mscore
+    '''
     json_out = []
 
     for d in to_discard:
@@ -140,21 +154,27 @@ def create_convert_batch(score_list, to_discard):
     return json_out
 
 
-def get_musicxml_paths(file_list):
+def get_musicxml_paths(data_path):
+    '''
+    Get list of .mscz files
+    '''
     count = 0
-    musicxml_paths = []
-    for file in file_list:
-        musicxml_file = os.path.splitext(file)[0] + '.musicxml'
-        if os.path.exists(musicxml_file):
-            musicxml_paths.append(musicxml_file)
-            count += 1
+    musicxml_files = []
+    for root, _, files in os.walk(data_path):
+        for file in files:
+            if file.endswith('.musicxml'):
+                musicxml_files.append(os.path.join(root, file))
+                count += 1
 
-    print(f'Total number of files with corresponding musicxml: {count}')
-    return musicxml_paths
+    print(f'Total number of musicxml files: {count}')
+    return musicxml_files
 
 
-def filter_empty(scores):
-    musicxml_paths = get_musicxml_paths(scores)
+def filter_empty(data_path):
+    '''
+    Filter out files that either have empty staves or don't have exactly 2 staves (left/right hand)
+    '''
+    musicxml_paths = get_musicxml_paths(data_path)
     filtered_paths = []
     for musicxml in tqdm(musicxml_paths):
         try:
@@ -163,7 +183,7 @@ def filter_empty(scores):
             continue
         except Exception:
             continue
-        if len(score.parts) < 2:
+        if len(score.parts) != 2:  # Ignore files that don't have 2 parts (left/right hand of piano)
             continue
         rh = score.parts[0].getElementsByClass(music21.stream.Measure)
         lh = score.parts[1].getElementsByClass(music21.stream.Measure)
@@ -176,10 +196,13 @@ def filter_empty(scores):
     return filtered_paths
 
 
-def create_filtered_pickle(filename, obj):
+def create_filtered_pickle(filename, data_path):
+    '''
+    Create pickle file containing the list of filtered piano paths
+    '''
     filtered_musicxml = None
     if not os.path.exists(filename):
-        filtered_musicxml = filter_empty(obj)
+        filtered_musicxml = filter_empty(data_path)
         with open(filename, 'wb') as f:
             pickle.dump(filtered_musicxml, f)
     else:
@@ -216,8 +239,8 @@ def main():
     args = parse_args()
     piano = None
     piano_path = './data/piano.pkl'
+    path = os.path.expanduser(args.dir_path)
     if args.process:
-        path = os.path.expanduser(args.dir_path)
         file_list = get_mscz_paths(path)
         piano = filter_piano(
             file_list, args.metadata)
@@ -233,7 +256,7 @@ def main():
         mscz2musicxml(piano, './data/piano.json')
 
     filtered_musicxml_piano = create_filtered_pickle(
-        './data/filtered_piano.pkl', piano)
+        './data/filtered_piano.pkl', path)
 
     print(f"There are {len(filtered_musicxml_piano)} piano files")
 
