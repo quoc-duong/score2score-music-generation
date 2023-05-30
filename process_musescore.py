@@ -12,6 +12,7 @@ import music21
 import shutil
 import concurrent.futures
 import threading
+from similarity import process_pitches
 
 
 def parse_args():
@@ -22,7 +23,7 @@ def parse_args():
                         type=str,
                         help='Path to directory containing Musescore files')
     parser.add_argument('--pkl',
-                        default='./data/filtered_piano.pkl',
+                        default='./data/piano_musicxml.pkl',
                         type=str,
                         help='Pickle file containing list of filtered MusicXML piano files')
     parser.add_argument('--metadata',
@@ -39,6 +40,12 @@ def parse_args():
     parser.add_argument('--convert',
                         action='store_true',
                         help='Convert mscz files to musicxml')
+    parser.add_argument('--filter_empty',
+                        action='store_true',
+                        help='Filter out empty musicxml files')
+    parser.add_argument('--musicxml_data',
+                        action='store_true',
+                        help='Use musicxml converted files')
     return parser.parse_args()
 
 
@@ -258,19 +265,26 @@ def main():
             file_list, args.metadata)
         with open(piano_path, 'wb') as f:
             pickle.dump(piano, f)
-    else:
-        if not os.path.exists(piano_path):
-            raise Exception('Pickle file does not exist')
-        with open(piano_path, 'rb') as f:
-            piano = pickle.load(f)
 
     if args.convert:
+        if not args.process:
+            if not os.path.exists(piano_path):
+                raise Exception('Pickle file does not exist')
+            with open(piano_path, 'rb') as f:
+                piano = pickle.load(f)
         mscz2musicxml(piano, './data/piano.json')
 
-    filtered_musicxml_piano = create_filtered_pickle(
-        args.pkl, path)
+    if args.filter_empty:
+        piano_musicxml = create_filtered_pickle(args.pkl, path)
+        print(f"There are {len(piano_musicxml)} piano files")
+    else:
+        if args.musicxml_data:
+            piano_musicxml = get_musicxml_paths(path)
+        else:
+            with open(args.pkl, 'rb') as f:
+                piano_musicxml = pickle.load(f)
 
-    print(f"There are {len(filtered_musicxml_piano)} piano files")
+    process_pitches(piano_musicxml,  './data/pitches.pkl')
 
     # create_dataset()
 
