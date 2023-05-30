@@ -28,7 +28,7 @@ def get_piano_pitches(path):
     return midi_lh
 
 def process_pitches(path_list, output_file):
-    pitches_list = [get_piano_pitches(path) for path in tqdm(path_list)]
+    pitches_list = [(path, get_piano_pitches(path)) for path in tqdm(path_list)]
 
     with open(output_file, 'wb') as f:
         pickle.dump(pitches_list, f)
