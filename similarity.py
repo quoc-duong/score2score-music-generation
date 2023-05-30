@@ -22,6 +22,8 @@ def get_midi_pitches(part):
 
 def get_piano_pitches(path):
     score = converter.parse(path)
+    if len(score.parts) != 2:
+        return None
     left_hand, right_hand = score.parts[0], score.parts[1]
     midi_lh = get_midi_pitches(left_hand)
     #midi_rh = get_midi_pitches(right_hand)

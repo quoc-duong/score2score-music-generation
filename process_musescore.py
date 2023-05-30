@@ -169,7 +169,7 @@ def create_convert_batch(score_list, to_discard):
 
 def get_musicxml_paths(data_path):
     '''
-    Get list of .mscz files
+    Get list of .musicxml files
     '''
     count = 0
     musicxml_files = []
