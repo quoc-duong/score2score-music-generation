@@ -1,4 +1,4 @@
-from music21 import corpus, stream, converter, chord
+from music21 import corpus, stream, converter, chord, Music21Exception
 from difflib import SequenceMatcher
 import os
 from tqdm import tqdm
@@ -21,7 +21,13 @@ def get_midi_pitches(part):
     return midi_pitches
 
 def get_piano_pitches(path):
-    score = converter.parse(path)
+    try:
+        score = converter.parse(path)
+    except Music21Exception:
+        return None
+    except Exception:
+        return None
+
     if len(score.parts) != 2:
         return None
     left_hand, right_hand = score.parts[0], score.parts[1]
@@ -30,7 +36,7 @@ def get_piano_pitches(path):
     return midi_lh
 
 def process_pitches(path_list, output_file):
-    pitches_list = [(path, get_piano_pitches(path)) for path in tqdm(path_list)]
+    pitches_list = [(path, value) for path in tqdm(path_list) if (value := get_piano_pitches(path)) is not None]
 
     with open(output_file, 'wb') as f:
         pickle.dump(pitches_list, f)
