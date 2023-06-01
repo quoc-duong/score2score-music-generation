@@ -30,7 +30,7 @@ def get_piano_pitches(path):
 
     if len(score.parts) != 2:
         return None
-    left_hand, right_hand = score.parts[0], score.parts[1]
+    left_hand, right_hand = score.parts[1], score.parts[0]
     midi_lh = get_midi_pitches(left_hand)
     #midi_rh = get_midi_pitches(right_hand)
     return midi_lh
