@@ -284,7 +284,7 @@ def main():
             with open(args.pkl, 'rb') as f:
                 piano_musicxml = pickle.load(f)
 
-    process_pitches(piano_musicxml,  './data/pitches.pkl')
+    process_pitches(piano_musicxml, './data/pitches.pkl')
 
     # create_dataset()
 
