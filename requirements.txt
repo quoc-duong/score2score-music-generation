@@ -1,0 +1,8 @@
+beautifulsoup4
+lxml
+matplotlib
+music21
+numpy
+pretty_midi
+tqdm
+getch
