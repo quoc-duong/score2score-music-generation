@@ -1,4 +1,4 @@
-from music21 import corpus, stream, converter, chord, Music21Exception
+from music21 import corpus, stream, converter, chord, Music21Exception, note
 from difflib import SequenceMatcher
 import os
 from tqdm import tqdm
@@ -16,9 +16,11 @@ def get_midi_pitches(part):
         if isinstance(obj, chord.Chord):
             chord_midi = get_chord_pitches(obj)
             midi_pitches.extend(chord_midi)
-        else:
+        elif isinstance(obj, note.Note):
             midi_pitches.append(obj.pitch.midi)
 
+    if len(midi_pitches) == 0:
+        return None
     return midi_pitches
 
 def get_piano_pitches(path):
@@ -34,6 +36,8 @@ def get_piano_pitches(path):
     left_hand, right_hand = score.parts[1], score.parts[0]
     #midi_lh = get_midi_pitches(left_hand)
     midi_rh = get_midi_pitches(right_hand)
+    if midi_rh is None:
+        return None
     return (path, midi_rh)
 
 def process_pitches(path_list, output_file, num_threads=os.cpu_count()):
