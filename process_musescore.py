@@ -12,7 +12,7 @@ import music21
 import shutil
 import concurrent.futures
 import threading
-from similarity import process_pitches
+from similarity import process_pitches, process_similarity
 
 
 def parse_args():
@@ -46,6 +46,9 @@ def parse_args():
     parser.add_argument('--musicxml_data',
                         action='store_true',
                         help='Use musicxml converted files')
+    parser.add_argument('--pitch',
+                        action='store_true',
+                        help='Compute pitch for every file')
     return parser.parse_args()
 
 
@@ -274,17 +277,20 @@ def main():
                 piano = pickle.load(f)
         mscz2musicxml(piano, './data/piano.json')
 
-    if args.filter_empty:
-        piano_musicxml = create_filtered_pickle(args.pkl, path)
-        print(f"There are {len(piano_musicxml)} piano files")
-    else:
-        if args.musicxml_data:
-            piano_musicxml = get_musicxml_paths(path)
+    if args.pitch:
+        if args.filter_empty:
+            piano_musicxml = create_filtered_pickle(args.pkl, path)
+            print(f"There are {len(piano_musicxml)} piano files")
         else:
-            with open(args.pkl, 'rb') as f:
-                piano_musicxml = pickle.load(f)
+            if args.musicxml_data:
+                piano_musicxml = get_musicxml_paths(path)
+            else:
+                with open(args.pkl, 'rb') as f:
+                    piano_musicxml = pickle.load(f)
 
-    process_pitches(piano_musicxml, './data/pitches.pkl')
+        process_pitches(piano_musicxml, './data/pitches.pkl')
+
+    to_remove = process_similarity()
 
     # create_dataset()
 
