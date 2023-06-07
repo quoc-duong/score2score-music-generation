@@ -87,13 +87,15 @@ def compute_minhash(pitches):
     return lsh, minhashes
 
 
+# TODO: Sort by len(pitches) and remove the smaller files first + figure out the right threshold for the sequence matcher
 def process_similarity(pitch_path='./data/pitches.pkl', threshold=0.5):
     with open(pitch_path, 'rb') as f:
         pitches = pickle.load(f)
 
     lsh, minhashes = compute_minhash(pitches)
 
-    to_remove = []
+    to_remove = set()
+    processed = set()
 
     similarities = []
     for i, p in tqdm(enumerate(pitches), 'Storing similar files (MinHash)'):
@@ -102,12 +104,19 @@ def process_similarity(pitch_path='./data/pitches.pkl', threshold=0.5):
         similarities.append([p] + similar_sequences)
 
     for l in tqdm(similarities, 'Computing edit distance for similar files'):
-        _, main_pitch_list = l[0]
+        main_path, main_pitch_list = l[0]
+        if main_path in processed:
+            continue
+        processed.add(main_path)
         for i in range(1, len(l)):
-            _, current_pitch_list = l[i]
+            current_path, current_pitch_list = l[i]
+            if current_path in processed:
+                continue
             score = compute_similarity(main_pitch_list, current_pitch_list)
             if score >= threshold:
-                to_remove.append(l[i])
+                to_remove.add(l[i][0])
+                processed.add(current_path)
+
 
     print(f'There are {len(to_remove)} files to remove from the dataset')
     return to_remove
