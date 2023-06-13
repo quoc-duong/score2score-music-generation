@@ -86,11 +86,15 @@ def compute_minhash(pitches):
 
     return lsh, minhashes
 
+def sort_pitches(pitches):
+    return sorted(pitches, key=lambda x: len(x[1]), reverse=True)
 
-# TODO: Sort by len(pitches) and remove the smaller files first + figure out the right threshold for the sequence matcher
 def process_similarity(pitch_path='./data/pitches.pkl', threshold=0.5):
     with open(pitch_path, 'rb') as f:
         pitches = pickle.load(f)
+
+    # Longer files are first
+    pitches = sort_pitches(pitches)
 
     lsh, minhashes = compute_minhash(pitches)
 
