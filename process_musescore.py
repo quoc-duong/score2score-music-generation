@@ -244,16 +244,12 @@ def create_filtered_pickle(filename, data_path):
     return filtered_musicxml
 
 
-def create_dataset():
-    # Create MusicXML dataset
-    with open('./data/filtered_piano.pkl', 'rb') as f:
-        piano_musicxml = pickle.load(f)
-
+def create_dataset(piano_musicxml):
     os.makedirs('dataset_musicxml', exist_ok=True)
     piano_dir = './dataset_musicxml/piano'
     os.makedirs(piano_dir, exist_ok=True)
 
-    for filepath in piano_musicxml:
+    for filepath in tqdm(piano_musicxml, 'Copying dataset'):
         shutil.copy(filepath, piano_dir)
 
 
@@ -261,9 +257,9 @@ def main():
     args = parse_args()
     piano = None
     piano_path = './data/piano.pkl'
-    path = os.path.expanduser(args.dir_path)
+    dir_path = os.path.expanduser(args.dir_path)
     if args.process:
-        file_list = get_mscz_paths(path)
+        file_list = get_mscz_paths(dir_path)
         piano = filter_piano(
             file_list, args.metadata)
         with open(piano_path, 'wb') as f:
@@ -279,20 +275,21 @@ def main():
 
     if args.pitch:
         if args.filter_empty:
-            piano_musicxml = create_filtered_pickle(args.pkl, path)
+            piano_musicxml = create_filtered_pickle(args.pkl, dir_path)
             print(f"There are {len(piano_musicxml)} piano files")
         else:
             if args.musicxml_data:
-                piano_musicxml = get_musicxml_paths(path)
+                piano_musicxml = get_musicxml_paths(dir_path)
             else:
                 with open(args.pkl, 'rb') as f:
                     piano_musicxml = pickle.load(f)
 
         process_pitches(piano_musicxml, './data/pitches.pkl')
 
-    to_remove = process_similarity()
+    paths = process_similarity()
+    paths = [os.path.join(dir_path, os.path.basename(os.path.dirname(filepath)), os.path.basename(filepath)) for filepath in paths]
 
-    # create_dataset()
+    create_dataset(paths)
 
 
 if __name__ == "__main__":

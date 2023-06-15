@@ -66,8 +66,16 @@ def process_pitches(path_list, output_file, num_threads=os.cpu_count()):
 
 
 def compute_similarity(l1, l2):
-    similarity_score = SequenceMatcher(a=l1, b=l2)
-    return similarity_score.quick_ratio()
+    len1, len2 = len(l1), len(l2)
+    len_diff = abs(len1 - len2)
+    max_len = max(len1, len2)
+    length_weight = 1 - (len_diff / max_len)
+
+    matcher = SequenceMatcher(a=l1, b=l2)
+    similarity_score = matcher.ratio()
+
+    weighted_similarity = similarity_score * length_weight
+    return weighted_similarity
 
 def compute_minhash(pitches):
     set_list = [set(el[1]) for el in pitches]
@@ -89,7 +97,7 @@ def compute_minhash(pitches):
 def sort_pitches(pitches):
     return sorted(pitches, key=lambda x: len(x[1]), reverse=True)
 
-def process_similarity(pitch_path='./data/pitches.pkl', threshold=0.5):
+def process_similarity(pitch_path='./data/pitches.pkl', threshold=0.01):
     with open(pitch_path, 'rb') as f:
         pitches = pickle.load(f)
 
@@ -123,5 +131,9 @@ def process_similarity(pitch_path='./data/pitches.pkl', threshold=0.5):
 
 
     print(f'There are {len(to_remove)} files to remove from the dataset')
-    return to_remove
 
+    results = [tup for tup in pitches if tup[0] not in to_remove]
+
+    paths, pitches = zip(*results)
+
+    return list(paths)
