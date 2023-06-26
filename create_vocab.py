@@ -26,7 +26,8 @@ def parse_args():
         '--musicxml',
         dest='musicxml',
         type=dir_path,
-        help='Directory containing MusicXML data'
+        help='Directory containing MusicXML data',
+        default='dataset_musicxml/piano/'
     )
 
     parser.add_argument(
@@ -36,7 +37,7 @@ def parse_args():
         type=str,
         help="Directory containing mapped data",
         nargs='?',
-        default='data'
+        default='mapped'
     )
 
     parser.add_argument(
@@ -76,9 +77,9 @@ def main():
     args = parse_args()
     musicxml_path = args.musicxml
 
-    sonatas_paths = glob.glob(musicxml_path + '/*')
+    filepaths = glob.glob(musicxml_path + '/*')
 
-    tokens_list = [MusicXML_to_tokens(path) for path in tqdm(sonatas_paths)]
+    tokens_list = [MusicXML_to_tokens(path) for path in tqdm(filepaths)]
 
     unique_tokens = get_unique_strings(tokens_list)
 

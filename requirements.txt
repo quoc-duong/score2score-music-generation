@@ -6,3 +6,4 @@ numpy
 pretty_midi
 tqdm
 getch
+torch

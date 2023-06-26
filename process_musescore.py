@@ -49,6 +49,9 @@ def parse_args():
     parser.add_argument('--pitch',
                         action='store_true',
                         help='Compute pitch for every file')
+    parser.add_argument('--similarity',
+                        action='store_true',
+                        help='Filter out similar files')
     return parser.parse_args()
 
 
@@ -286,10 +289,18 @@ def main():
 
         process_pitches(piano_musicxml, './data/pitches.pkl')
 
-    paths = process_similarity()
-    paths = [os.path.join(dir_path, os.path.basename(os.path.dirname(filepath)), os.path.basename(filepath)) for filepath in paths]
+    if args.similarity:
+        paths = process_similarity()
+        paths = [os.path.join(dir_path, os.path.basename(os.path.dirname(filepath)), os.path.basename(filepath)) for filepath in paths]
 
-    create_dataset(paths)
+    with open('data/difficulty.pkl', 'rb') as f:
+        difficulties = pickle.load(f)
+        difficulties = [(os.path.join('dataset_musicxml', os.path.basename(path)), round(diff_ensemble)) for path, diff_ensemble, diff_p, diff_argnn, diff_virtuoso in difficulties]
+
+    for d in difficulties:
+        print(d)
+
+    #create_dataset(paths)
 
 
 if __name__ == "__main__":

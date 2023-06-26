@@ -24,7 +24,7 @@ def get_midi_pitches(part):
         return None
     return midi_pitches
 
-def get_piano_pitches(path):
+def get_piano_pitches(path, is_right_hand=True):
     try:
         score = converter.parse(path)
     except Music21Exception:
@@ -35,19 +35,23 @@ def get_piano_pitches(path):
     if len(score.parts) != 2:
         return None
     left_hand, right_hand = score.parts[1], score.parts[0]
-    #midi_lh = get_midi_pitches(left_hand)
-    midi_rh = get_midi_pitches(right_hand)
-    if midi_rh is None:
-        return None
-    return (path, midi_rh)
 
-def process_pitches(path_list, output_file, num_threads=os.cpu_count()):
+    midi = None
+    if is_right_hand:
+        midi = get_midi_pitches(right_hand)
+    else:
+        midi = get_midi_pitches(left_hand)
+    if midi is None:
+        return None
+    return (path, midi)
+
+def process_pitches(path_list, output_file, is_right_hand=True, num_threads=os.cpu_count()):
     pitches_list = []
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         progress_bar = tqdm(total=len(path_list))
 
-        futures = [executor.submit(get_piano_pitches, path) for path in path_list]
+        futures = [executor.submit(get_piano_pitches, path, is_right_hand) for path in path_list]
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
             progress_bar.update(1)
