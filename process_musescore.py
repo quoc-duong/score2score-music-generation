@@ -247,14 +247,16 @@ def create_filtered_pickle(filename, data_path):
     return filtered_musicxml
 
 
-def create_dataset(piano_musicxml):
-    os.makedirs('dataset_musicxml', exist_ok=True)
-    piano_dir = './dataset_musicxml/piano'
-    os.makedirs(piano_dir, exist_ok=True)
+def create_dataset(dataset_filtered, difficulties):
+    os.makedirs(dataset_filtered, exist_ok=True)
 
-    for filepath in tqdm(piano_musicxml, 'Copying dataset'):
-        shutil.copy(filepath, piano_dir)
+    for filepath, _ in tqdm(difficulties, 'Copying dataset'):
+        shutil.copy(filepath, dataset_filtered)
 
+def save_filtered_difficulties(filtered_difficulties):
+    filtered_difficulties = [(os.path.join('dataset_musicxml_filtered', os.path.basename(path)), difficulty) for path, difficulty in filtered_difficulties]
+    with open('data/difficulties_filtered.pkl', 'wb') as f:
+        pickle.dump(filtered_difficulties, f)
 
 def main():
     args = parse_args()
@@ -293,14 +295,15 @@ def main():
         paths = process_similarity()
         paths = [os.path.join(dir_path, os.path.basename(os.path.dirname(filepath)), os.path.basename(filepath)) for filepath in paths]
 
-    with open('data/difficulty.pkl', 'rb') as f:
+    with open('data/200-300_difficulties.pkl', 'rb') as f:
         difficulties = pickle.load(f)
         difficulties = [(os.path.join('dataset_musicxml', os.path.basename(path)), round(diff_ensemble)) for path, diff_ensemble, diff_p, diff_argnn, diff_virtuoso in difficulties]
 
-    for d in difficulties:
-        print(d)
+    filtered_difficulties = [(path, difficulty) for path, difficulty in difficulties if 1 <= difficulty <= 4]
 
-    #create_dataset(paths)
+    create_dataset('dataset_musicxml_filtered', filtered_difficulties)
+
+    save_filtered_difficulties(filtered_difficulties)
 
 
 if __name__ == "__main__":
