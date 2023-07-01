@@ -6,11 +6,23 @@ from tqdm import tqdm
 import glob
 import numpy as np
 import pandas as pd
+from score_to_tokens import MusicXML_to_tokens
+from create_vocab import *
 
 """
 Split a MusicXML file into multiple by n bars
+
+Create vocabulary file from MusicXML data
+
+Convert MusicXML data into Score Transformers representation
+then creates a vocabulary file from that.
 """
 
+def dir_path(string):
+    if os.path.isdir(string):
+        return string
+    else:
+        raise NotADirectoryError(string)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -22,7 +34,7 @@ def parse_args():
         type=str,
         help="Directory containing split files",
         nargs='?',
-        default='output'
+        default='dataset_fragments'
     )
 
     parser.add_argument(
@@ -30,7 +42,14 @@ def parse_args():
         '--dir',
         dest='dir',
         nargs='?',
-        default='./beethoven_sonatas/'
+        default='./dataset_musicxml_filtered/'
+    )
+
+    parser.add_argument(
+        '--difficulty',
+        dest='difficulty',
+        nargs='?',
+        default='data/difficulties_filtered.pkl'
     )
 
     parser.add_argument(
@@ -41,10 +60,36 @@ def parse_args():
         default='4'
     )
 
+    parser.add_argument(
+        '--musicxml',
+        dest='musicxml',
+        type=dir_path,
+        help='Directory containing MusicXML data',
+        default='dataset_fragments_4'
+    )
+
+    parser.add_argument(
+        '-m'
+        '--mapped',
+        dest='mapped',
+        type=str,
+        help="Directory containing mapped data",
+        nargs='?',
+        default='mapped'
+    )
+
+    parser.add_argument(
+        '-v',
+        '--vocab',
+        dest='vocab',
+        nargs='?',
+        default='mapped/score_transformers_vocab.txt'
+    )
+
     return parser.parse_args()
 
 
-def split_in_fragments(score_path, output_dir, fragment_size):
+def split_in_fragments(score_path, output_dir, fragment_size, difficulty_dict):
     # Load the music score
     score = converter.parse(score_path)
 
@@ -63,7 +108,7 @@ def split_in_fragments(score_path, output_dir, fragment_size):
     for i, fragment in enumerate(tqdm(fragments)):
         try:
             fragment.write("musicxml", f'{output_dir}/{filename}'.split(
-                '.')[0] + '_fragment_' + str(fragments.index(fragment)) + '.musicxml')
+                '.')[0] + '_fragment_' + str(fragments.index(fragment) + '_d_' + str(difficulty_dict.get(score_path))) + '.musicxml')
         except musicxml.xmlObjects.MusicXMLException as e:
             print(f"MusicXML error on fragment {i}: {e}")
             pass
@@ -81,6 +126,9 @@ def create_complexity_all(fragments_path):
 
     return df
 
+def create_tuple_dictionary(tuple_list):
+    tuple_dict = {t[0]: t[1] for t in tuple_list}
+    return tuple_dict
 
 def compute_complexity(fragment):
     complexity_values = []
@@ -103,10 +151,34 @@ def compute_complexity(fragment):
 
 
 def main():
-    df = create_complexity_all(args.output)
-    df.to_csv('complexity.csv')
+    args = parse_args()
 
+    with open(args.difficulty, 'rb') as f:
+        difficulty_dict = create_tuple_dictionary(pickle.dump(f))
+
+    for f in tqdm(os.listdir(args.dir), 'Splitting musicxml score into fragments'):
+        filepath = os.path.join(args.dir, f)
+        split_in_fragments(filepath, args.output, args.bars, difficulty_dict)
+
+    musicxml_path = args.musicxml
+    filepaths = glob.glob(musicxml_path + '/*')
+
+    tokens_list = []
+    for path in tqdm(filepaths):
+        try:
+            sub_list = MusicXML_to_tokens(path)
+            if sub_list is not None:
+                tokens_list.append(sub_list)
+        except Exception as e:
+            continue
+
+    unique_tokens = get_unique_strings(tokens_list)
+
+    os.makedirs(args.mapped, exist_ok=True)
+
+    write_to_file(unique_tokens, args.vocab)
+
+    create_mappings(args.mapped, tokens_list, unique_tokens)
 
 if __name__ == '__main__':
-    args = parse_args()
     main()
