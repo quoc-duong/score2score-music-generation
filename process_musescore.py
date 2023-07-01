@@ -254,7 +254,7 @@ def create_dataset(dataset_filtered, difficulties):
         shutil.copy(filepath, dataset_filtered)
 
 def save_filtered_difficulties(filtered_difficulties):
-    filtered_difficulties = [(os.path.join('dataset_musicxml_filtered', os.path.basename(path)), difficulty) for path, difficulty in filtered_difficulties]
+    filtered_difficulties = [(os.path.basename(path), difficulty) for path, difficulty in filtered_difficulties]
     with open('data/difficulties_filtered.pkl', 'wb') as f:
         pickle.dump(filtered_difficulties, f)
 
