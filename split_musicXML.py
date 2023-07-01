@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from score_to_tokens import MusicXML_to_tokens
 from create_vocab import *
+import pickle
 
 """
 Split a MusicXML file into multiple by n bars
@@ -42,7 +43,7 @@ def parse_args():
         '--dir',
         dest='dir',
         nargs='?',
-        default='./dataset_musicxml_filtered/'
+        default='dataset_musicxml_filtered'
     )
 
     parser.add_argument(
@@ -58,14 +59,6 @@ def parse_args():
         dest='bars',
         type=int,
         default='4'
-    )
-
-    parser.add_argument(
-        '--musicxml',
-        dest='musicxml',
-        type=dir_path,
-        help='Directory containing MusicXML data',
-        default='dataset_fragments_4'
     )
 
     parser.add_argument(
@@ -90,8 +83,10 @@ def parse_args():
 
 
 def split_in_fragments(score_path, output_dir, fragment_size, difficulty_dict):
+    fragment_paths = []
+
     # Load the music score
-    score = converter.parse(score_path)
+    score = converter.parse(os.path.join('dataset_musicxml_filtered', score_path))
 
     # Get the measures and time signatures
     measures_rh = score.parts[0].getElementsByClass(stream.Measure)
@@ -105,16 +100,28 @@ def split_in_fragments(score_path, output_dir, fragment_size, difficulty_dict):
     filename = os.path.basename(score_path)
     os.makedirs(output_dir, exist_ok=True)
     # Print the fragments
-    for i, fragment in enumerate(tqdm(fragments)):
+    for i, fragment in enumerate(fragments):
         try:
-            fragment.write("musicxml", f'{output_dir}/{filename}'.split(
-                '.')[0] + '_fragment_' + str(fragments.index(fragment) + '_d_' + str(difficulty_dict.get(score_path))) + '.musicxml')
+            current_fragment = fragments.index(fragment)
+            current_difficulty = difficulty_dict.get(score_path)
+            current_path = f'{output_dir}/{filename}'.split('.')[0] \
+                        + '_fragment_' + str(current_fragment) \
+                        + '_d_' + str(current_difficulty ) \
+                        + '.musicxml'
+            if not os.path.exists(current_path):
+                fragment.write("musicxml", current_path)
+
+            difficulty_dict[current_path] = current_difficulty
+            fragment_paths.append(current_path)
+
         except musicxml.xmlObjects.MusicXMLException as e:
             print(f"MusicXML error on fragment {i}: {e}")
             pass
         except Exception as e:
             print(f"Other error on fragment {i}: {e}")
             pass
+
+    return fragment_paths, difficulty_dict
 
 
 def create_complexity_all(fragments_path):
@@ -149,26 +156,37 @@ def compute_complexity(fragment):
     # Return the average note complexity across all voices
     return np.mean(complexity_values)
 
+def get_difficulty_token(difficulty):
+    diff_dict = {
+        1: ['[ONE]'],
+        2: ['[TWO]'],
+        3: ['[THR]'],
+        4: ['[FOU]'],
+    }
+
+    return diff_dict[difficulty]
 
 def main():
     args = parse_args()
 
     with open(args.difficulty, 'rb') as f:
-        difficulty_dict = create_tuple_dictionary(pickle.dump(f))
+        difficulty_dict = create_tuple_dictionary(pickle.load(f))
 
-    for f in tqdm(os.listdir(args.dir), 'Splitting musicxml score into fragments'):
-        filepath = os.path.join(args.dir, f)
-        split_in_fragments(filepath, args.output, args.bars, difficulty_dict)
+    musicxml_paths = list(difficulty_dict.keys())
 
-    musicxml_path = args.musicxml
-    filepaths = glob.glob(musicxml_path + '/*')
+    filepaths = []
+    for filename in tqdm(musicxml_paths, 'Splitting musicxml score into fragments'):
+        current_fragment_paths, difficulty_dict = split_in_fragments(filename, args.output, args.bars, difficulty_dict)
+        filepaths.extend(current_fragment_paths)
 
     tokens_list = []
     for path in tqdm(filepaths):
         try:
             sub_list = MusicXML_to_tokens(path)
             if sub_list is not None:
-                tokens_list.append(sub_list)
+                difficulty = difficulty_dict[path]
+                sequence = get_difficulty_token(difficulty) + sub_list
+                tokens_list.append((path, sequence))
         except Exception as e:
             continue
 
